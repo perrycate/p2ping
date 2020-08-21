@@ -20,17 +20,14 @@ let roomId = null;
 function init() {
   document.querySelector('#hangupBtn').addEventListener('click', hangUp);
   document.querySelector('#createBtn').addEventListener('click', createRoom);
-  document.querySelector('#joinBtn').addEventListener('click', joinRoom);
-  roomDialog = new mdc.dialog.MDCDialog(document.querySelector('#room-dialog'));
   if (window.location.pathname != "/") {
-      document.querySelector("#room-id").value = window.location.pathname.slice(1);
-      joinRoom();
+    document.querySelector('#createBtn').disabled = true;
+    joinRoomById(window.location.pathname.slice(1));
   }
 }
 
 async function createRoom() {
   document.querySelector('#createBtn').disabled = true;
-  document.querySelector('#joinBtn').disabled = true;
   const db = firebase.firestore();
   const a = await db.collection('rooms');
   console.log(a);
@@ -80,8 +77,11 @@ async function createRoom() {
   await roomRef.set(roomWithOffer);
   roomId = roomRef.id;
   console.log(`New room created with SDP offer. Room ID: ${roomRef.id}`);
-  document.querySelector(
-      '#currentRoom').innerText = `Room url: ${new URL(roomRef.id, window.location)} - You are the caller!`;
+
+  const shareUrl = new URL(roomRef.id, window.location);
+  document.querySelector('#shareUrl').innerText = shareUrl;
+  document.querySelector('#urlDisplay').style.display = '';
+ 
   // Code for creating a room above
 
   // Listening for remote session description below
@@ -106,21 +106,6 @@ async function createRoom() {
     });
   });
   // Listen for remote ICE candidates above
-}
-
-function joinRoom() {
-  document.querySelector('#createBtn').disabled = true;
-  document.querySelector('#joinBtn').disabled = true;
-
-  document.querySelector('#confirmJoinBtn').
-      addEventListener('click', async () => {
-        roomId = document.querySelector('#room-id').value;
-        console.log('Join room: ', roomId);
-        document.querySelector(
-            '#currentRoom').innerText = `Current room is ${roomId} - You are the callee!`;
-        await joinRoomById(roomId);
-      }, {once: true});
-  roomDialog.open();
 }
 
 async function joinRoomById(roomId) {
