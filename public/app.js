@@ -22,6 +22,7 @@ function init() {
   document.querySelector('#createBtn').addEventListener('click', createRoom);
   if (window.location.pathname != "/") {
     document.querySelector('#createBtn').disabled = true;
+    document.querySelector('#latency').innerText = "Connecting..."
     joinRoomById(window.location.pathname.slice(1));
   }
 }
@@ -46,7 +47,7 @@ async function createRoom() {
     const sentTime = parseInt(event.data);
     elapsedMs = Date.now() - sentTime;
     console.log(elapsedMs + " elapsed!")
-    document.querySelector('#display').innerText = elapsedMs;
+    document.querySelector('#latency').innerText = `Your round trip latency in ms: ${elapsedMs}`;
   });
   registerPeerConnectionListeners();
 
@@ -171,7 +172,7 @@ async function joinRoomById(roomId) {
         })
     });
 
-
+    document.querySelector('#latency').innerText = "Connected! Your peer is measuring latency now."
   }
 }
 
