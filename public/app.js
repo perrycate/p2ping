@@ -79,9 +79,7 @@ async function createRoom() {
   roomId = roomRef.id;
   console.log(`New room created with SDP offer. Room ID: ${roomRef.id}`);
 
-  const shareUrl = new URL(roomRef.id, window.location);
-  document.querySelector('#shareUrl').innerText = shareUrl;
-  document.querySelector('#urlDisplay').style.display = '';
+  document.querySelector('#urlDisplay').innerText = `Share this link (keep this tab open) to test your peer-to-peer latency: ${new URL(roomRef.id, window.location)}`;
  
   // Code for creating a room above
 
