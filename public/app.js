@@ -80,7 +80,7 @@ async function createRoom() {
   console.log(`New room created with SDP offer. Room ID: ${roomRef.id}`);
 
   document.querySelector('#urlDisplay').innerText = `Share this link (keep this tab open) to test your peer-to-peer latency: ${new URL(roomRef.id, window.location)}`;
- 
+
   // Code for creating a room above
 
   // Listening for remote session description below
@@ -117,9 +117,9 @@ async function joinRoomById(roomId) {
     console.log('Create PeerConnection with configuration: ', configuration);
     peerConnection = new RTCPeerConnection(configuration);
     console.log("created connection");
-    
+
     registerPeerConnectionListeners();
-    
+
     // Code for collecting ICE candidates below
     const calleeCandidatesCollection = roomRef.collection('calleeCandidates');
     peerConnection.addEventListener('icecandidate', event => {
@@ -161,13 +161,13 @@ async function joinRoomById(roomId) {
     });
     // Listening for remote ICE candidates above
     peerConnection.addEventListener('datachannel', event => {
-        console.log("recieved channel!");
-        dataChannel = event.channel;
-        dataChannel.addEventListener('message', event => {
-            const msg = event.data;
-            console.log("got: " + msg);
-            dataChannel.send(msg);
-        })
+      console.log("recieved channel!");
+      dataChannel = event.channel;
+      dataChannel.addEventListener('message', event => {
+        const msg = event.data;
+        console.log("got: " + msg);
+        dataChannel.send(msg);
+      })
     });
 
     document.querySelector('#latency').innerText = "Connected! Your peer is measuring latency now."
@@ -207,7 +207,7 @@ async function hangUp(e) {
 function registerPeerConnectionListeners() {
   peerConnection.addEventListener('icegatheringstatechange', () => {
     console.log(
-        `ICE gathering state changed: ${peerConnection.iceGatheringState}`);
+      `ICE gathering state changed: ${peerConnection.iceGatheringState}`);
   });
 
   peerConnection.addEventListener('connectionstatechange', () => {
@@ -220,7 +220,7 @@ function registerPeerConnectionListeners() {
 
   peerConnection.addEventListener('iceconnectionstatechange ', () => {
     console.log(
-        `ICE connection state change: ${peerConnection.iceConnectionState}`);
+      `ICE connection state change: ${peerConnection.iceConnectionState}`);
   });
 }
 
