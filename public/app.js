@@ -94,16 +94,6 @@ class Connection {
 
 let conn = new Connection();
 
-function init() {
-  document.querySelector('#hangupBtn').addEventListener('click', hangUp);
-  document.querySelector('#createBtn').addEventListener('click', conn.create);
-  if (window.location.pathname != "/") {
-    document.querySelector('#createBtn').disabled = true;
-    document.querySelector('#latency').innerText = "Connecting..."
-    joinById(window.location.pathname.slice(1));
-  }
-}
-
 async function joinById(roomId) {
   console.log('Getting room with id: ', roomId)
   const db = firebase.firestore();
@@ -219,6 +209,16 @@ function registerPeerConnectionListeners() {
     console.log(
       `ICE connection state change: ${conn.peerConnection.iceConnectionState}`);
   });
+}
+
+function init() {
+  document.querySelector('#hangupBtn').addEventListener('click', hangUp);
+  document.querySelector('#createBtn').addEventListener('click', conn.create);
+  if (window.location.pathname != "/") {
+    document.querySelector('#createBtn').disabled = true;
+    document.querySelector('#latency').innerText = "Connecting..."
+    joinById(window.location.pathname.slice(1));
+  }
 }
 
 init();
