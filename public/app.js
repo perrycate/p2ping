@@ -18,90 +18,90 @@ class Connection {
     this.dataChannel = null;
     this.roomId = null;
   }
+  async create() {
+    document.querySelector('#createBtn').disabled = true;
+    const db = firebase.firestore();
+    const a = await db.collection('conns');
+    console.log(a);
+    const roomRef = await db.collection('conns').doc();
+
+    console.log('Create PeerConnection with configuration: ', configuration);
+    conn.peerConnection = new RTCPeerConnection(configuration);
+
+    conn.dataChannel = conn.peerConnection.createDataChannel("test");
+    console.log("test");
+    conn.dataChannel.addEventListener("open", event => {
+      console.log("open!");
+      setInterval(() => conn.dataChannel.send(Date.now()), 1000);
+    });
+    conn.dataChannel.addEventListener('message', event => {
+      const sentTime = parseInt(event.data);
+      let elapsedMs = Date.now() - sentTime;
+      console.log(elapsedMs + " elapsed!")
+      document.querySelector('#latency').innerText = `Your round trip latency in ms: ${elapsedMs}`;
+    });
+    registerPeerConnectionListeners();
+
+    // Collect ICE Candidates for the current browser.
+    const callerCandidatesCollection = roomRef.collection('callerCandidates');
+    conn.peerConnection.addEventListener('icecandidate', event => {
+      if (!event.candidate) {
+        console.log('Got final candidate!');
+        return;
+      }
+      console.log('Got candidate: ', event.candidate);
+      callerCandidatesCollection.add(event.candidate.toJSON());
+    });
+
+    // Create p2p "room".
+    const offer = await conn.peerConnection.createOffer();
+    await conn.peerConnection.setLocalDescription(offer);
+    console.log('Created offer:', offer);
+    const roomWithOffer = {
+      'offer': {
+        type: offer.type,
+        sdp: offer.sdp,
+      },
+    };
+    await roomRef.set(roomWithOffer);
+    conn.roomId = roomRef.id;
+    console.log(`New room created with SDP offer. Room ID: ${roomRef.id}`);
+    document.querySelector('#urlDisplay').innerText = `Share this link (keep this tab open) to test your peer-to-peer latency: ${new URL(roomRef.id, window.location)}`;
+
+    // Listening for remote session description.
+    roomRef.onSnapshot(async snapshot => {
+      const data = snapshot.data();
+      if (!conn.peerConnection.currentRemoteDescription && data && data.answer) {
+        console.log('Got remote description: ', data.answer);
+        const rtcSessionDescription = new RTCSessionDescription(data.answer);
+        await conn.peerConnection.setRemoteDescription(rtcSessionDescription);
+      }
+    });
+
+    // Listen for remote ICE candidates.
+    roomRef.collection('calleeCandidates').onSnapshot(snapshot => {
+      snapshot.docChanges().forEach(async change => {
+        if (change.type === 'added') {
+          let data = change.doc.data();
+          console.log(`Got new remote ICE candidate: ${JSON.stringify(data)}`);
+          await conn.peerConnection.addIceCandidate(new RTCIceCandidate(data));
+        }
+      });
+    });
+
+  }
 }
 
 let conn = new Connection();
 
 function init() {
   document.querySelector('#hangupBtn').addEventListener('click', hangUp);
-  document.querySelector('#createBtn').addEventListener('click', create);
+  document.querySelector('#createBtn').addEventListener('click', conn.create);
   if (window.location.pathname != "/") {
     document.querySelector('#createBtn').disabled = true;
     document.querySelector('#latency').innerText = "Connecting..."
     joinById(window.location.pathname.slice(1));
   }
-}
-
-async function create() {
-  document.querySelector('#createBtn').disabled = true;
-  const db = firebase.firestore();
-  const a = await db.collection('conns');
-  console.log(a);
-  const roomRef = await db.collection('conns').doc();
-
-  console.log('Create PeerConnection with configuration: ', configuration);
-  conn.peerConnection = new RTCPeerConnection(configuration);
-
-  conn.dataChannel = conn.peerConnection.createDataChannel("test");
-  console.log("test");
-  conn.dataChannel.addEventListener("open", event => {
-    console.log("open!");
-    setInterval(() => conn.dataChannel.send(Date.now()), 1000);
-  });
-  conn.dataChannel.addEventListener('message', event => {
-    const sentTime = parseInt(event.data);
-    elapsedMs = Date.now() - sentTime;
-    console.log(elapsedMs + " elapsed!")
-    document.querySelector('#latency').innerText = `Your round trip latency in ms: ${elapsedMs}`;
-  });
-  registerPeerConnectionListeners();
-
-  // Collect ICE Candidates for the current browser.
-  const callerCandidatesCollection = roomRef.collection('callerCandidates');
-  conn.peerConnection.addEventListener('icecandidate', event => {
-    if (!event.candidate) {
-      console.log('Got final candidate!');
-      return;
-    }
-    console.log('Got candidate: ', event.candidate);
-    callerCandidatesCollection.add(event.candidate.toJSON());
-  });
-
-  // Create p2p "room".
-  const offer = await conn.peerConnection.createOffer();
-  await conn.peerConnection.setLocalDescription(offer);
-  console.log('Created offer:', offer);
-  const roomWithOffer = {
-    'offer': {
-      type: offer.type,
-      sdp: offer.sdp,
-    },
-  };
-  await roomRef.set(roomWithOffer);
-  conn.roomId = roomRef.id;
-  console.log(`New room created with SDP offer. Room ID: ${roomRef.id}`);
-  document.querySelector('#urlDisplay').innerText = `Share this link (keep this tab open) to test your peer-to-peer latency: ${new URL(roomRef.id, window.location)}`;
-
-  // Listening for remote session description.
-  roomRef.onSnapshot(async snapshot => {
-    const data = snapshot.data();
-    if (!conn.peerConnection.currentRemoteDescription && data && data.answer) {
-      console.log('Got remote description: ', data.answer);
-      const rtcSessionDescription = new RTCSessionDescription(data.answer);
-      await conn.peerConnection.setRemoteDescription(rtcSessionDescription);
-    }
-  });
-
-  // Listen for remote ICE candidates.
-  roomRef.collection('calleeCandidates').onSnapshot(snapshot => {
-    snapshot.docChanges().forEach(async change => {
-      if (change.type === 'added') {
-        let data = change.doc.data();
-        console.log(`Got new remote ICE candidate: ${JSON.stringify(data)}`);
-        await conn.peerConnection.addIceCandidate(new RTCIceCandidate(data));
-      }
-    });
-  });
 }
 
 async function joinById(roomId) {
