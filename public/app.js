@@ -24,20 +24,20 @@ let conn = new Connection();
 
 function init() {
   document.querySelector('#hangupBtn').addEventListener('click', hangUp);
-  document.querySelector('#createBtn').addEventListener('click', createRoom);
+  document.querySelector('#createBtn').addEventListener('click', create);
   if (window.location.pathname != "/") {
     document.querySelector('#createBtn').disabled = true;
     document.querySelector('#latency').innerText = "Connecting..."
-    joinRoomById(window.location.pathname.slice(1));
+    joinById(window.location.pathname.slice(1));
   }
 }
 
-async function createRoom() {
+async function create() {
   document.querySelector('#createBtn').disabled = true;
   const db = firebase.firestore();
-  const a = await db.collection('rooms');
+  const a = await db.collection('conns');
   console.log(a);
-  const roomRef = await db.collection('rooms').doc();
+  const roomRef = await db.collection('conns').doc();
 
   console.log('Create PeerConnection with configuration: ', configuration);
   conn.peerConnection = new RTCPeerConnection(configuration);
@@ -104,10 +104,10 @@ async function createRoom() {
   });
 }
 
-async function joinRoomById(roomId) {
+async function joinById(roomId) {
   console.log('Getting room with id: ', roomId)
   const db = firebase.firestore();
-  const roomRef = db.collection('rooms').doc(`${roomId}`);
+  const roomRef = db.collection('conns').doc(`${roomId}`);
   const roomSnapshot = await roomRef.get();
   console.log('Got room:', roomSnapshot.exists);
 
@@ -186,7 +186,7 @@ async function hangUp(e) {
   // Delete room on hangup.
   if (conn.roomId) {
     const db = firebase.firestore();
-    const roomRef = db.collection('rooms').doc(conn.roomId);
+    const roomRef = db.collection('conns').doc(conn.roomId);
     const calleeCandidates = await roomRef.collection('calleeCandidates').get();
     calleeCandidates.forEach(async candidate => {
       await candidate.ref.delete();
