@@ -26,15 +26,15 @@ class Connection {
     const roomRef = await db.collection('conns').doc();
 
     console.log('Create PeerConnection with configuration: ', configuration);
-    conn.peerConnection = new RTCPeerConnection(configuration);
+    this.peerConnection = new RTCPeerConnection(configuration);
 
-    conn.dataChannel = conn.peerConnection.createDataChannel("test");
+    this.dataChannel = this.peerConnection.createDataChannel("test");
     console.log("test");
-    conn.dataChannel.addEventListener("open", event => {
+    this.dataChannel.addEventListener("open", event => {
       console.log("open!");
-      setInterval(() => conn.dataChannel.send(Date.now()), 1000);
+      setInterval(() => this.dataChannel.send(Date.now()), 1000);
     });
-    conn.dataChannel.addEventListener('message', event => {
+    this.dataChannel.addEventListener('message', event => {
       const sentTime = parseInt(event.data);
       let elapsedMs = Date.now() - sentTime;
       console.log(elapsedMs + " elapsed!")
@@ -44,7 +44,7 @@ class Connection {
 
     // Collect ICE Candidates for the current browser.
     const callerCandidatesCollection = roomRef.collection('callerCandidates');
-    conn.peerConnection.addEventListener('icecandidate', event => {
+    this.peerConnection.addEventListener('icecandidate', event => {
       if (!event.candidate) {
         console.log('Got final candidate!');
         return;
@@ -54,8 +54,8 @@ class Connection {
     });
 
     // Create p2p "room".
-    const offer = await conn.peerConnection.createOffer();
-    await conn.peerConnection.setLocalDescription(offer);
+    const offer = await this.peerConnection.createOffer();
+    await this.peerConnection.setLocalDescription(offer);
     console.log('Created offer:', offer);
     const roomWithOffer = {
       'offer': {
@@ -64,17 +64,17 @@ class Connection {
       },
     };
     await roomRef.set(roomWithOffer);
-    conn.roomId = roomRef.id;
+    this.roomId = roomRef.id;
     console.log(`New room created with SDP offer. Room ID: ${roomRef.id}`);
     document.querySelector('#urlDisplay').innerText = `Share this link (keep this tab open) to test your peer-to-peer latency: ${new URL(roomRef.id, window.location)}`;
 
     // Listening for remote session description.
     roomRef.onSnapshot(async snapshot => {
       const data = snapshot.data();
-      if (!conn.peerConnection.currentRemoteDescription && data && data.answer) {
+      if (!this.peerConnection.currentRemoteDescription && data && data.answer) {
         console.log('Got remote description: ', data.answer);
         const rtcSessionDescription = new RTCSessionDescription(data.answer);
-        await conn.peerConnection.setRemoteDescription(rtcSessionDescription);
+        await this.peerConnection.setRemoteDescription(rtcSessionDescription);
       }
     });
 
@@ -84,7 +84,7 @@ class Connection {
         if (change.type === 'added') {
           let data = change.doc.data();
           console.log(`Got new remote ICE candidate: ${JSON.stringify(data)}`);
-          await conn.peerConnection.addIceCandidate(new RTCIceCandidate(data));
+          await this.peerConnection.addIceCandidate(new RTCIceCandidate(data));
         }
       });
     });
@@ -213,7 +213,7 @@ function registerPeerConnectionListeners() {
 
 function init() {
   document.querySelector('#hangupBtn').addEventListener('click', hangUp);
-  document.querySelector('#createBtn').addEventListener('click', conn.create);
+  document.querySelector('#createBtn').addEventListener('click', conn.create.bind(conn));
   if (window.location.pathname != "/") {
     document.querySelector('#createBtn').disabled = true;
     document.querySelector('#latency').innerText = "Connecting..."
