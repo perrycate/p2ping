@@ -159,36 +159,6 @@ class Connection {
 
 let conn = new Connection();
 
-async function hangUp(e) {
-
-  if (conn.peerConnection) {
-    conn.peerConnection.close();
-  }
-
-  document.querySelector('#cameraBtn').disabled = false;
-  document.querySelector('#joinBtn').disabled = true;
-  document.querySelector('#createBtn').disabled = true;
-  document.querySelector('#hangupBtn').disabled = true;
-  document.querySelector('#currentRoom').innerText = '';
-
-  // Delete room on hangup.
-  if (conn.roomId) {
-    const db = firebase.firestore();
-    const roomRef = db.collection('conns').doc(conn.roomId);
-    const calleeCandidates = await roomRef.collection('calleeCandidates').get();
-    calleeCandidates.forEach(async candidate => {
-      await candidate.ref.delete();
-    });
-    const callerCandidates = await roomRef.collection('callerCandidates').get();
-    callerCandidates.forEach(async candidate => {
-      await candidate.ref.delete();
-    });
-    await roomRef.delete();
-  }
-
-  document.location.reload(true);
-}
-
 function registerPeerConnectionListeners() {
   conn.peerConnection.addEventListener('icegatheringstatechange', () => {
     console.log(
@@ -210,7 +180,6 @@ function registerPeerConnectionListeners() {
 }
 
 function init() {
-  document.querySelector('#hangupBtn').addEventListener('click', hangUp);
   document.querySelector('#createBtn').addEventListener('click', conn.create.bind(conn));
   if (window.location.pathname != "/") {
     document.querySelector('#createBtn').disabled = true;
