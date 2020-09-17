@@ -40,7 +40,7 @@ class Connection {
       console.log(elapsedMs + " elapsed!")
       document.querySelector('#latency').innerText = `Your round trip latency in ms: ${elapsedMs}`;
     });
-    registerPeerConnectionListeners();
+    this.registerPeerConnectionListeners();
 
     // Collect ICE Candidates for the current browser.
     const callerCandidatesCollection = roomRef.collection('callerCandidates');
@@ -102,7 +102,7 @@ class Connection {
       this.peerConnection = new RTCPeerConnection(configuration);
       console.log("created connection");
 
-      registerPeerConnectionListeners();
+      this.registerPeerConnectionListeners();
 
       // Collect ICE candidates.
       const calleeCandidatesCollection = roomRef.collection('calleeCandidates');
@@ -155,29 +155,29 @@ class Connection {
       document.querySelector('#latency').innerText = "Connected! Your peer is measuring latency now."
     }
   }
+
+  registerPeerConnectionListeners() {
+    this.peerConnection.addEventListener('icegatheringstatechange', () => {
+      console.log(
+        `ICE gathering state changed: ${this.peerConnection.iceGatheringState}`);
+    });
+
+    this.peerConnection.addEventListener('connectionstatechange', () => {
+      console.log(`Connection state change: ${this.peerConnection.connectionState}`);
+    });
+
+    this.peerConnection.addEventListener('signalingstatechange', () => {
+      console.log(`Signaling state change: ${this.peerConnection.signalingState}`);
+    });
+
+    this.peerConnection.addEventListener('iceconnectionstatechange ', () => {
+      console.log(
+        `ICE connection state change: ${this.peerConnection.iceConnectionState}`);
+    });
+  }
 }
 
 let conn = new Connection();
-
-function registerPeerConnectionListeners() {
-  conn.peerConnection.addEventListener('icegatheringstatechange', () => {
-    console.log(
-      `ICE gathering state changed: ${conn.peerConnection.iceGatheringState}`);
-  });
-
-  conn.peerConnection.addEventListener('connectionstatechange', () => {
-    console.log(`Connection state change: ${conn.peerConnection.connectionState}`);
-  });
-
-  conn.peerConnection.addEventListener('signalingstatechange', () => {
-    console.log(`Signaling state change: ${conn.peerConnection.signalingState}`);
-  });
-
-  conn.peerConnection.addEventListener('iceconnectionstatechange ', () => {
-    console.log(
-      `ICE connection state change: ${conn.peerConnection.iceConnectionState}`);
-  });
-}
 
 function init() {
   document.querySelector('#createBtn').addEventListener('click', conn.create.bind(conn));
