@@ -64,7 +64,20 @@ class Connection {
     await roomRef.set(roomWithOffer);
     this.roomId = roomRef.id;
     console.log(`New room created with SDP offer. Room ID: ${roomRef.id}`);
-    document.querySelector('#urlDisplay').innerText = `Share this link (keep this tab open) to test your peer-to-peer latency: ${new URL(roomRef.id, window.location)}`;
+    let url = new URL(roomRef.id, window.location);
+    document.querySelector('#userPrompt').innerText = `Share this link (keep this tab open) to test your peer-to-peer latency:`;
+    document.querySelector('#urlDisplay').innerText = url;
+    let copyButton = document.querySelector('#copyBtn');
+    copyButton.onclick = function (event) {
+      console.log(event)
+      navigator.clipboard.writeText(url).then(function () {
+        document.querySelector('#copyDisplay').innerText = "URL Copied!";
+      }, function (err) {
+        document.querySelector('#copyDisplay').innerText = "Failed to copy URL. Consider filing a bug on Github.";
+        console.log(err);
+      });
+    };
+    copyButton.style.display = "inline";
 
     // Listening for remote session description.
     roomRef.onSnapshot(async snapshot => {
