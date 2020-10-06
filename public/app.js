@@ -14,61 +14,44 @@ const configuration = {
 
 class Connection {
   constructor() {
-    this.peerConnection = null;
     this.dataChannel = null;
     this.roomId = null;
+
+    console.log('Creating PeerConnection with configuration: ', configuration);
+    this.peerConnection = new RTCPeerConnection(configuration);
+    console.log('Created.');
+
+    this.db = firebase.firestore();
   }
 
   async create() {
     document.querySelector('#createBtn').disabled = true;
-    const db = firebase.firestore();
-    const roomRef = await db.collection('conns').doc();
-
-    console.log('Created PeerConnection with configuration: ', configuration);
-    this.peerConnection = new RTCPeerConnection(configuration);
+    const roomRef = await this.db.collection('conns').doc();
     this.dataChannel = this.peerConnection.createDataChannel("test");
+
     this.registerPeerConnectionListeners();
 
     // Collect ICE Candidates for the current browser.
-    const callerCandidatesCollection = roomRef.collection('callerCandidates');
-    this.peerConnection.addEventListener('icecandidate', event => {
-      if (!event.candidate) {
-        console.log('All candidates recieved.');
-        return;
-      }
-      console.log('Got candidate: ', event.candidate);
-      callerCandidatesCollection.add(event.candidate.toJSON());
-    });
+    this.collectIceCandidatesInto(roomRef.collection('callerCandidates'))
 
-    // Create p2p "room".
+    // Create SDP Offer.
     const offer = await this.peerConnection.createOffer();
     await this.peerConnection.setLocalDescription(offer);
     console.log('Created offer:', offer);
     const roomWithOffer = {
-      'offer': {
+      offer: {
         type: offer.type,
         sdp: offer.sdp,
       },
     };
     await roomRef.set(roomWithOffer);
-    this.roomId = roomRef.id;
     console.log(`New room created with SDP offer. Room ID: ${roomRef.id}`);
-    let url = new URL(roomRef.id, window.location);
-    document.querySelector('#userPrompt').innerText = `Share this link (keep this tab open) to test your peer-to-peer latency:`;
-    document.querySelector('#urlDisplay').innerText = url;
-    let copyButton = document.querySelector('#copyBtn');
-    copyButton.onclick = function (event) {
-      console.log(event)
-      navigator.clipboard.writeText(url).then(function () {
-        document.querySelector('#copyDisplay').innerText = "URL Copied!";
-      }, function (err) {
-        document.querySelector('#copyDisplay').innerText = "Failed to copy URL. Consider filing a bug on Github.";
-        console.log(err);
-      });
-    };
-    copyButton.style.display = "inline";
 
-    // Listening for remote session description.
+    // Display URL.
+    let url = new URL(roomRef.id, window.location);
+    this.displayShareLink(url);
+
+    // Listen for remote session description.
     roomRef.onSnapshot(async snapshot => {
       const data = snapshot.data();
       if (!this.peerConnection.currentRemoteDescription && data && data.answer) {
@@ -79,15 +62,7 @@ class Connection {
     });
 
     // Listen for remote ICE candidates.
-    roomRef.collection('calleeCandidates').onSnapshot(snapshot => {
-      snapshot.docChanges().forEach(async change => {
-        if (change.type === 'added') {
-          let data = change.doc.data();
-          console.log(`Got new remote ICE candidate: ${JSON.stringify(data)}`);
-          await this.peerConnection.addIceCandidate(new RTCIceCandidate(data));
-        }
-      });
-    });
+    roomRef.collection('calleeCandidates').onSnapshot(this.addRemoteCandidateIfExists.bind(this));
 
     this.dataChannel.addEventListener("open", event => {
       setInterval(() => this.dataChannel.send(Date.now()), 1000);
@@ -98,14 +73,11 @@ class Connection {
       console.log(elapsedMs + " elapsed!")
       document.querySelector('#latency').innerText = `Your round trip latency in ms: ${elapsedMs}`;
     });
-
-
   }
 
   async joinById(roomId) {
     console.log('Getting room with id: ', roomId)
-    const db = firebase.firestore();
-    const roomRef = db.collection('conns').doc(`${roomId}`);
+    const roomRef = this.db.collection('conns').doc(`${roomId}`);
     const roomSnapshot = await roomRef.get();
     console.log('Got room:', roomSnapshot.exists);
 
@@ -114,21 +86,10 @@ class Connection {
       return
     }
 
-    console.log('Create PeerConnection with configuration: ', configuration);
-    this.peerConnection = new RTCPeerConnection(configuration);
-    console.log("Connection created.");
     this.registerPeerConnectionListeners();
 
     // Collect ICE candidates.
-    const calleeCandidatesCollection = roomRef.collection('calleeCandidates');
-    this.peerConnection.addEventListener('icecandidate', event => {
-      if (!event.candidate) {
-        console.log('All candidates recieved.');
-        return;
-      }
-      console.log('Got local candidate: ', event.candidate);
-      calleeCandidatesCollection.add(event.candidate.toJSON());
-    });
+    this.collectIceCandidatesInto(roomRef.collection('calleeCandidates'))
 
     // Create SDP answer.
     const offer = roomSnapshot.data().offer;
@@ -137,7 +98,6 @@ class Connection {
     const answer = await this.peerConnection.createAnswer();
     console.log('Created answer:', answer);
     await this.peerConnection.setLocalDescription(answer);
-
     const roomWithAnswer = {
       answer: {
         type: answer.type,
@@ -147,17 +107,11 @@ class Connection {
     await roomRef.update(roomWithAnswer);
 
     // Listen for remote ICE candidates.
-    roomRef.collection('callerCandidates').onSnapshot(snapshot => {
-      snapshot.docChanges().forEach(async change => {
-        if (change.type === 'added') {
-          let data = change.doc.data();
-          console.log(`Got new remote ICE candidate: ${JSON.stringify(data)}`);
-          await this.peerConnection.addIceCandidate(new RTCIceCandidate(data));
-        }
-      });
-    });
+    roomRef.collection('callerCandidates').onSnapshot(this.addRemoteCandidateIfExists.bind(this));
 
     this.peerConnection.addEventListener('datachannel', event => {
+      // If we got a data channel, we know we're connected.
+      document.querySelector('#latency').innerText = "Connected! Your peer is measuring latency now."
       this.dataChannel = event.channel;
       this.dataChannel.addEventListener('message', event => {
         const msg = event.data;
@@ -166,7 +120,28 @@ class Connection {
       })
     });
 
-    document.querySelector('#latency').innerText = "Connected! Your peer is measuring latency now."
+  }
+
+  collectIceCandidatesInto(collection) {
+    this.peerConnection.addEventListener('icecandidate', event => {
+      if (!event.candidate) {
+        console.log('All candidates recieved.');
+        return;
+      }
+      console.log('Got candidate: ', event.candidate);
+      collection.add(event.candidate.toJSON());
+    });
+  }
+
+  addRemoteCandidateIfExists(snapshot) {
+    snapshot.docChanges().forEach(async change => {
+      if (change.type === 'added') {
+        let data = change.doc.data();
+        console.log(`Got new remote ICE candidate: ${JSON.stringify(data)}`);
+        await this.peerConnection.addIceCandidate(new RTCIceCandidate(data));
+      }
+    });
+
   }
 
   registerPeerConnectionListeners() {
@@ -187,6 +162,25 @@ class Connection {
       console.log(
         `ICE connection state change: ${this.peerConnection.iceConnectionState}`);
     });
+  }
+
+  // Right now this is going to be my catchall for DOM manipulation stuff.
+  // Not putting too much thought into this since it'll be replaced with react before too long anyway.
+  displayShareLink(url) {
+    document.querySelector('#userPrompt').innerText = `Share this link (keep this tab open) to test your peer-to-peer latency:`;
+    document.querySelector('#urlDisplay').innerText = url;
+    let copyButton = document.querySelector('#copyBtn');
+    copyButton.onclick = function (event) {
+      console.log(event)
+      navigator.clipboard.writeText(url).then(function () {
+        document.querySelector('#copyDisplay').innerText = "URL Copied!";
+      }, function (err) {
+        document.querySelector('#copyDisplay').innerText = "Failed to copy URL. Consider filing a bug on Github.";
+        console.log(err);
+      });
+    };
+    copyButton.style.display = "inline";
+
   }
 }
 
