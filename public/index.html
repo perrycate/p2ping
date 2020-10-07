@@ -5,9 +5,6 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>P2Ping - How's your connection?</title>
-    <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
-    <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
 
     <!-- Firebase Stuff -->
     <script src="/__/firebase/7.19.0/firebase-app.js"></script>
@@ -34,14 +31,8 @@
             src="https://github.blog/wp-content/uploads/2008/12/forkme_right_darkblue_121621.png?resize=149%2C149"
             alt="Fork me on GitHub" data-recalc-dims="1"></a>
     <h1>P2Ping</h1>
-    <div id="buttons">
-        <button class="mdc-button mdc-button--raised" id="createBtn">
-            <i class="material-icons mdc-button__icon" aria-hidden="true">group_add</i>
-            <span class="mdc-button__label">Get Connected</span>
-        </button>
-    </div>
     <div>
-        <p id="userPrompt">Click the button above to get a share link.</p>
+        <p id="userPrompt">Initializing...</p>
         <button id="copyBtn" style="display:none">Copy Url</button>
         <p id="urlDisplay" style="display:inline-block"></p>
         <p id="copyDisplay"></p>

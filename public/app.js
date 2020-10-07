@@ -1,5 +1,3 @@
-mdc.ripple.MDCRipple.attachTo(document.querySelector('.mdc-button'));
-
 const configuration = {
   iceServers: [
     {
@@ -25,7 +23,6 @@ class Connection {
   }
 
   async create() {
-    document.querySelector('#createBtn').disabled = true;
     const roomRef = await this.db.collection('conns').doc();
     this.dataChannel = this.peerConnection.createDataChannel("test");
 
@@ -111,7 +108,7 @@ class Connection {
 
     this.peerConnection.addEventListener('datachannel', event => {
       // If we got a data channel, we know we're connected.
-      document.querySelector('#latency').innerText = "Connected! Your peer is measuring latency now."
+      document.querySelector('#userPrompt').innerText = "Connected! Your peer is measuring latency now."
       this.dataChannel = event.channel;
       this.dataChannel.addEventListener('message', event => {
         const msg = event.data;
@@ -187,12 +184,15 @@ class Connection {
 
 function init() {
   let conn = new Connection();
-  document.querySelector('#createBtn').addEventListener('click', conn.create.bind(conn));
-  if (window.location.pathname != "/") {
-    document.querySelector('#createBtn').disabled = true;
-    document.querySelector('#latency').innerText = "Connecting..."
-    conn.joinById(window.location.pathname.slice(1));
+  let id = window.location.pathname.slice(1);
+
+  if (id == "") {
+    // A user is visiting the base URL. Set up a connection and a URL for users to connect to.
+    conn.create();
+    return
   }
+  document.querySelector('#userPrompt').innerText = "Connecting..."
+  conn.joinById(id);
 }
 
 init();
