@@ -1,3 +1,5 @@
+"use strict";
+
 const configuration = {
   iceServers: [
     {
@@ -10,10 +12,22 @@ const configuration = {
   iceCandidatePoolSize: 10,
 };
 
+// Contains data to be echo'd to the remote peer and back to determine latency.
+class Ping {
+  constructor(origin, timestamp) {
+    this.origin = origin
+    this.timestamp = timestamp
+  }
+
+  toString() {
+    return JSON.stringify(this)
+  }
+}
+
 class Connection {
-  constructor() {
+  constructor(id) {
     this.dataChannel = null;
-    this.roomId = null;
+    this.id = id;
 
     console.log('Creating PeerConnection with configuration: ', configuration);
     this.peerConnection = new RTCPeerConnection(configuration);
@@ -26,7 +40,7 @@ class Connection {
     const roomRef = await this.db.collection('conns').doc();
     this.dataChannel = this.peerConnection.createDataChannel("test");
 
-    this.registerPeerConnectionListeners();
+    registerPeerConnectionListeners(this.peerConnection);
 
     // Collect ICE Candidates for the current browser.
     this.collectIceCandidatesInto(roomRef.collection('callerCandidates'))
@@ -48,7 +62,7 @@ class Connection {
     let url = new URL(roomRef.id, window.location);
     this.displayShareLink(url);
 
-    // Listen for remote session description.
+    // Listen for remote SDP answer.
     roomRef.onSnapshot(async snapshot => {
       const data = snapshot.data();
       if (!this.peerConnection.currentRemoteDescription && data && data.answer) {
@@ -61,29 +75,21 @@ class Connection {
     // Listen for remote ICE candidates.
     roomRef.collection('calleeCandidates').onSnapshot(this.addRemoteCandidateIfExists.bind(this));
 
-    this.dataChannel.addEventListener("open", event => {
-      setInterval(() => this.dataChannel.send(Date.now()), 1000);
-    });
-    this.dataChannel.addEventListener('message', event => {
-      const sentTime = parseInt(event.data);
-      let elapsedMs = Date.now() - sentTime;
-      console.log(elapsedMs + " elapsed!")
-      document.querySelector('#latency').innerText = `Your round trip latency in ms: ${elapsedMs}`;
-    });
+    this.registerDataChannelListeners();
   }
 
-  async joinById(roomId) {
-    console.log('Getting room with id: ', roomId)
-    const roomRef = this.db.collection('conns').doc(`${roomId}`);
+  async join() {
+    console.log('Getting room with id: ', this.id)
+    const roomRef = this.db.collection('conns').doc(`${this.id}`);
     const roomSnapshot = await roomRef.get();
     console.log('Got room:', roomSnapshot.exists);
 
     if (!roomSnapshot.exists) {
-      console.log(`Unable to connect: room with id ${roomId} not found.`)
+      console.log(`Unable to connect: room with id ${this.id} not found.`)
       return
     }
 
-    this.registerPeerConnectionListeners();
+    registerPeerConnectionListeners(this.peerConnection);
 
     // Collect ICE candidates.
     this.collectIceCandidatesInto(roomRef.collection('calleeCandidates'))
@@ -110,13 +116,35 @@ class Connection {
       // If we got a data channel, we know we're connected.
       document.querySelector('#userPrompt').innerText = "Connected! Your peer is measuring latency now."
       this.dataChannel = event.channel;
-      this.dataChannel.addEventListener('message', event => {
-        const msg = event.data;
-        console.log("got: " + msg);
-        this.dataChannel.send(msg);
-      })
+      this.registerDataChannelListeners();
     });
+  }
 
+  handlePing(p) {
+    // Echo back anything that we didn't send.
+    if (p.origin !== this.id) {
+      console.log("echoing back", p)
+      this.dataChannel.send(p);
+      return
+    }
+
+    // Calculate latency by how long it took our own pings to be echo'd back to us.
+    let elapsedMs = Date.now() - p.timestamp;
+    console.log(elapsedMs + " elapsed!")
+    document.querySelector('#latency').innerText = `Your round trip latency in ms: ${elapsedMs}`;
+  }
+
+  registerDataChannelListeners() {
+    this.dataChannel.addEventListener('message', event => {
+      this.handlePing(Object.assign(new Ping, JSON.parse(event.data)));
+    })
+
+    this.dataChannel.addEventListener('open', () => {
+      setInterval(() => {
+        let p = new Ping(this.id, Date.now())
+        this.dataChannel.send(p)
+      }, 1000);
+    });
   }
 
   collectIceCandidatesInto(collection) {
@@ -137,27 +165,6 @@ class Connection {
         console.log(`Got new remote ICE candidate: ${JSON.stringify(data)}`);
         await this.peerConnection.addIceCandidate(new RTCIceCandidate(data));
       }
-    });
-
-  }
-
-  registerPeerConnectionListeners() {
-    this.peerConnection.addEventListener('icegatheringstatechange', () => {
-      console.log(
-        `ICE gathering state changed: ${this.peerConnection.iceGatheringState}`);
-    });
-
-    this.peerConnection.addEventListener('connectionstatechange', () => {
-      console.log(`Connection state change: ${this.peerConnection.connectionState}`);
-    });
-
-    this.peerConnection.addEventListener('signalingstatechange', () => {
-      console.log(`Signaling state change: ${this.peerConnection.signalingState}`);
-    });
-
-    this.peerConnection.addEventListener('iceconnectionstatechange ', () => {
-      console.log(
-        `ICE connection state change: ${this.peerConnection.iceConnectionState}`);
     });
   }
 
@@ -181,10 +188,32 @@ class Connection {
   }
 }
 
+// Sets up some helpful ICE-related logging.
+function registerPeerConnectionListeners(peerConnection) {
+  peerConnection.addEventListener('icegatheringstatechange', () => {
+    console.log(
+      `ICE gathering state changed: ${this.peerConnection.iceGatheringState}`);
+  });
+
+  peerConnection.addEventListener('connectionstatechange', () => {
+    console.log(`Connection state change: ${this.peerConnection.connectionState}`);
+  });
+
+  peerConnection.addEventListener('signalingstatechange', () => {
+    console.log(`Signaling state change: ${this.peerConnection.signalingState}`);
+  });
+
+  peerConnection.addEventListener('iceconnectionstatechange ', () => {
+    console.log(
+      `ICE connection state change: ${this.peerConnection.iceConnectionState}`);
+  });
+}
+
+
 
 function init() {
-  let conn = new Connection();
   let id = window.location.pathname.slice(1);
+  let conn = new Connection(id);
 
   if (id == "") {
     // A user is visiting the base URL. Set up a connection and a URL for users to connect to.
@@ -192,7 +221,7 @@ function init() {
     return
   }
   document.querySelector('#userPrompt').innerText = "Connecting..."
-  conn.joinById(id);
+  conn.join();
 }
 
 init();
