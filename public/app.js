@@ -192,20 +192,20 @@ class Connection {
 function registerPeerConnectionListeners(peerConnection) {
   peerConnection.addEventListener('icegatheringstatechange', () => {
     console.log(
-      `ICE gathering state changed: ${this.peerConnection.iceGatheringState}`);
+      `ICE gathering state changed: ${peerConnection.iceGatheringState}`);
   });
 
   peerConnection.addEventListener('connectionstatechange', () => {
-    console.log(`Connection state change: ${this.peerConnection.connectionState}`);
+    console.log(`Connection state change: ${peerConnection.connectionState}`);
   });
 
   peerConnection.addEventListener('signalingstatechange', () => {
-    console.log(`Signaling state change: ${this.peerConnection.signalingState}`);
+    console.log(`Signaling state change: ${peerConnection.signalingState}`);
   });
 
   peerConnection.addEventListener('iceconnectionstatechange ', () => {
     console.log(
-      `ICE connection state change: ${this.peerConnection.iceConnectionState}`);
+      `ICE connection state change: ${peerConnection.iceConnectionState}`);
   });
 }
 
