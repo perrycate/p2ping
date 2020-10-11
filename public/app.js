@@ -31,6 +31,12 @@ class Connection {
 
     console.log('Creating PeerConnection with configuration: ', configuration);
     this.peerConnection = new RTCPeerConnection(configuration);
+    this.peerConnection.addEventListener('datachannel', event => {
+      // If we got a data channel, we know we're connected.
+      document.querySelector('#userPrompt').innerText = "Connected! Your peer is measuring latency now."
+      this.dataChannel = event.channel;
+      this.registerDataChannelListeners();
+    });
     console.log('Created.');
 
     this.db = firebase.firestore();
@@ -39,6 +45,7 @@ class Connection {
   async create() {
     const roomRef = await this.db.collection('conns').doc();
     this.dataChannel = this.peerConnection.createDataChannel("test");
+    this.registerDataChannelListeners();
 
     registerPeerConnectionListeners(this.peerConnection);
 
@@ -75,7 +82,6 @@ class Connection {
     // Listen for remote ICE candidates.
     roomRef.collection('calleeCandidates').onSnapshot(this.addRemoteCandidateIfExists.bind(this));
 
-    this.registerDataChannelListeners();
   }
 
   async join() {
@@ -112,12 +118,6 @@ class Connection {
     // Listen for remote ICE candidates.
     roomRef.collection('callerCandidates').onSnapshot(this.addRemoteCandidateIfExists.bind(this));
 
-    this.peerConnection.addEventListener('datachannel', event => {
-      // If we got a data channel, we know we're connected.
-      document.querySelector('#userPrompt').innerText = "Connected! Your peer is measuring latency now."
-      this.dataChannel = event.channel;
-      this.registerDataChannelListeners();
-    });
   }
 
   handlePing(p) {
@@ -208,8 +208,6 @@ function registerPeerConnectionListeners(peerConnection) {
       `ICE connection state change: ${peerConnection.iceConnectionState}`);
   });
 }
-
-
 
 function init() {
   let id = window.location.pathname.slice(1);
