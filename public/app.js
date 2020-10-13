@@ -44,6 +44,10 @@ class Connection {
 
   async create() {
     const roomRef = await this.db.collection('conns').doc();
+    // Delete data when the page is closed.
+    window.addEventListener("beforeunload", function (_) {
+      roomRef.delete().then();
+    });
     this.dataChannel = this.peerConnection.createDataChannel("test");
     this.registerDataChannelListeners();
 
