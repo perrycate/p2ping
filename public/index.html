@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="height:100%">
 
 <head>
     <!-- Bootstrap stuff -->
@@ -8,8 +8,6 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
         integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
     <link rel="stylesheet" href="style.css">
-
-    <title>P2Ping - How's your connection?</title>
 
     <!-- Firebase Stuff -->
     <script src="/__/firebase/7.19.0/firebase-app.js"></script>
@@ -27,23 +25,102 @@
             measurementId: "G-ZCHTLN0ZLR"
         });
     </script>
+
+    <!-- D3.js -->
+    <script type="text/javascript" src="https://d3js.org/d3.v6.min.js"></script>
+
+    <title>P2Ping - How's your connection?</title>
 </head>
 
-<body>
+<body style="height:100%">
     <!-- GitHub Button -->
     <span id="forkongithub"><a href="https://github.com/perrycate/p2ping">Fork me on GitHub</a></span>
 
-    <div class="container">
-        <h1>P2Ping</h1>
+    <div class="d-flex flex-column h-100 text-center">
+        <div class="container">
+            <h1>P2Ping</h1>
+
+            <p id="userPrompt">Initializing...</p>
+            <button id="copyBtn" class="btn btn-outline-dark" style="display:none">Copy Link</button>
+            <p id="urlDisplay" style="display:inline-block"></p>
+            <p id="copyDisplay"></p>
+            <br />
+            <span id="latency"></span>
+        </div>
+
+        <!-- Latency Graph -->
+        <div id="latencyGraph" class="container h-100"></div>
     </div>
-    <div class="container">
-        <p id="userPrompt">Initializing...</p>
-        <button id="copyBtn" class="btn btn-outline-dark" style="display:none">Copy Link</button>
-        <p id="urlDisplay" style="display:inline-block"></p>
-        <p id="copyDisplay"></p>
-        <br />
-        <span id="latency"></span>
-    </div>
+    <script>
+        // D3 graph display code.
+        // Leaving this inline for now because it's a lot more view-oriented
+        // than (most) of the content of app.js. I'm not going to bother finding
+        // a better way to factor this since I'll end up restructuring everything
+        // once I incorporate react anyway.
+
+        // Set the dimensions and margins of the graph.
+        const margin = { top: 10, right: 30, bottom: 30, left: 30 },
+            totalWidth = 460,
+            totalHeight = 400,
+            width = totalWidth - margin.left - margin.right,
+            height = totalHeight - margin.top - margin.bottom;
+
+        // Append the svg object to the body of the page.
+        let svg = d3.select("#latencyGraph")
+            .append("svg")
+            .attr("style", "max-height: 75%")
+            .attr("viewBox", `0 0 ${totalWidth} ${totalHeight}`)
+            .append("g")
+            .attr("transform",
+                "translate(" + margin.left + "," + margin.top + ")");
+
+        // Initialize X axis --> it is a date format.
+        let x = d3.scaleLinear().range([0, width]);
+        let xAxis = d3.axisBottom(x);
+        svg.append("g")
+            .attr("transform", "translate(0," + height + ")")
+            .attr("class", "myXaxis");
+
+        // Initialize Y axis.
+        let y = d3.scaleLinear().range([height, 0]);
+        let yAxis = d3.axisLeft(y);
+        svg.append("g")
+            .attr("class", "myYaxis");
+
+        // We're going to use this to update the graph from all the way in app.js.
+        // This feels ugly but I don't care enough to bother fixing it yet.
+        let updateGraph = function (data) {
+            // Update axes.
+            x.domain(d3.extent(data, function (d) { return d.time; }))
+            svg.selectAll(".myXaxis").transition().call(xAxis);
+            y.domain([0, d3.max(data, function (d) { return d.value; })])
+            svg.selectAll(".myYaxis").transition().call(yAxis);
+
+            // Bind data.
+            let u = svg.selectAll(".lineTest").data([data]);
+
+            // Update line.
+            u
+                .enter()
+                .append("path")
+                .attr("class", "lineTest")
+                .attr("fill", "none")
+                .attr("stroke", "steelblue")
+                .attr("stroke-width", 1.5)
+                .merge(u)
+                .transition()
+                .attr("d", d3.line()
+                    .x(function (d) { return x(d.time) })
+                    .y(function (d) { return y(d.value) })
+                )
+        };
+
+        //Read the data
+        let data = [];
+        updateGraph(data);
+    </script>
+
+
     <script src="app.js"></script>
 </body>
 
