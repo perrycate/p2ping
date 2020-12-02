@@ -28,7 +28,7 @@ class Connection {
   constructor(id) {
     this.dataChannel = null;
     this.id = id;
-    this.graphData = [];
+    this.graphData = Array.from(Array(DATA_LENGTH).keys()).map((x) => { return 0; });
 
     console.log('Creating PeerConnection with configuration: ', configuration);
     this.peerConnection = new RTCPeerConnection(configuration);
@@ -139,9 +139,10 @@ class Connection {
     document.querySelector('#latency').innerText = `Your round trip latency in ms: ${elapsedMs}`;
 
     // Update the graph.
-    let lastTime = this.graphData.length > 0 ? this.graphData[this.graphData.length - 1].time : 0
-    this.graphData.push({ time: lastTime + 1, value: elapsedMs })
+    this.graphData.push(elapsedMs)
+    this.graphData.shift();
     updateGraph(this.graphData);
+
   }
 
   registerDataChannelListeners() {

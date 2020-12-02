@@ -62,3 +62,8 @@
     vertical-align:150%;
     font-size: .3em
 }
+
+.myYaxis {
+    /* Makes the axis obscure the line if the line goes behind the axis. */
+    fill: white; /* Same color as background, I hope. */
+}

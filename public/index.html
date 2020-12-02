@@ -51,6 +51,8 @@
         <div id="latencyGraph" class="container h-100"></div>
     </div>
     <script>
+        // Number of data points to keep before discarding the oldest ones.
+        const DATA_LENGTH = 60;
         // D3 graph display code.
         // Leaving this inline for now because it's a lot more view-oriented
         // than (most) of the content of app.js. I'm not going to bother finding
@@ -71,7 +73,7 @@
             .attr("viewBox", `0 0 ${totalWidth} ${totalHeight}`)
             .append("g")
             .attr("transform",
-                "translate(" + margin.left + "," + margin.top + ")");
+                "translate(" + margin.left + "," + margin.top + ")");;
 
         // Initialize X axis --> it is a date format.
         let x = d3.scaleLinear().range([0, width]);
@@ -80,19 +82,23 @@
             .attr("transform", "translate(0," + height + ")")
             .attr("class", "myXaxis");
 
+        x.domain([0, DATA_LENGTH])
+        svg.selectAll(".myXaxis").transition().call(xAxis);
+
         // Initialize Y axis.
         let y = d3.scaleLinear().range([height, 0]);
         let yAxis = d3.axisLeft(y);
         svg.append("g")
             .attr("class", "myYaxis");
 
+
+
+
         // We're going to use this to update the graph from all the way in app.js.
         // This feels ugly but I don't care enough to bother fixing it yet.
         let updateGraph = function (data) {
             // Update axes.
-            x.domain(d3.extent(data, function (d) { return d.time; }))
-            svg.selectAll(".myXaxis").transition().call(xAxis);
-            y.domain([0, d3.max(data, function (d) { return d.value; })])
+            y.domain([0, d3.max(data, function (d) { return d; })])
             svg.selectAll(".myYaxis").transition().call(yAxis);
 
             // Bind data.
@@ -101,25 +107,34 @@
             // Update line.
             u
                 .enter()
-                .append("path")
+                // Make sure the path is behind the y-axis, so the path doesn't
+                // go past the axis as it slides left.
+                .insert("path", ".myYaxis")
                 .attr("class", "lineTest")
                 .attr("fill", "none")
                 .attr("stroke", "steelblue")
                 .attr("stroke-width", 1.5)
                 .merge(u)
-                .transition()
                 .attr("d", d3.line()
-                    .x(function (d) { return x(d.time) })
-                    .y(function (d) { return y(d.value) })
+                    .x(function (d, i) { return x(i) })
+                    .y(function (d, i) { return y(d) })
                 )
+
+                .attr("transform", null)
+                // Interupt previous transition if it was still ongoing.
+                // This will make it just jump to where it was transitioning to.
+                .interrupt()
+                // Slide graph over by 1 data point.
+                .transition()
+                .duration(1000)
+                .ease(d3.easeLinear)
+                .attr("transform", "translate(" + x(-1) + ",0)");
         };
 
         //Read the data
-        let data = [];
+        let data = Array.from(Array(DATA_LENGTH).keys()).map((x) => { return 0; });
         updateGraph(data);
     </script>
-
-
     <script src="app.js"></script>
 </body>
 
