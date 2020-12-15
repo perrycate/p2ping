@@ -154,7 +154,7 @@ class Connection {
       setInterval(() => {
         let p = new Ping(this.id, Date.now())
         this.dataChannel.send(p)
-      }, 1000);
+      }, PING_INTERVAL);
     });
   }
 

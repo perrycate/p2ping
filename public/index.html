@@ -52,7 +52,9 @@
     </div>
     <script>
         // Number of data points to keep before discarding the oldest ones.
-        const DATA_LENGTH = 60;
+        const DATA_LENGTH = 240;
+        // How long to wait between each ping.
+        const PING_INTERVAL = 250;
         // D3 graph display code.
         // Leaving this inline for now because it's a lot more view-oriented
         // than (most) of the content of app.js. I'm not going to bother finding
@@ -77,7 +79,7 @@
 
         // Initialize X axis --> it is a date format.
         let x = d3.scaleLinear().range([0, width]);
-        let xAxis = d3.axisBottom(x);
+        let xAxis = d3.axisBottom(x).tickValues([]);
         svg.append("g")
             .attr("transform", "translate(0," + height + ")")
             .attr("class", "myXaxis");
@@ -109,6 +111,7 @@
                 .enter()
                 // Make sure the path is behind the y-axis, so the path doesn't
                 // go past the axis as it slides left.
+                // To make sure of this, the y-axis needs to appear first in the DOM.
                 .insert("path", ".myYaxis")
                 .attr("class", "lineTest")
                 .attr("fill", "none")
@@ -126,7 +129,7 @@
                 .interrupt()
                 // Slide graph over by 1 data point.
                 .transition()
-                .duration(1000)
+                .duration(PING_INTERVAL)
                 .ease(d3.easeLinear)
                 .attr("transform", "translate(" + x(-1) + ",0)");
         };
