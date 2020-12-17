@@ -29,6 +29,7 @@ class Connection {
     this.dataChannel = null;
     this.id = id;
     this.graphData = Array.from(Array(DATA_LENGTH).keys()).map((x) => { return 0; });
+    this.totalPings = 0;
 
     console.log('Creating PeerConnection with configuration: ', configuration);
     this.peerConnection = new RTCPeerConnection(configuration);
@@ -133,16 +134,16 @@ class Connection {
       return
     }
 
-    // Calculate latency by how long it took our own pings to be echo'd back to us.
-    let elapsedMs = Date.now() - p.timestamp;
-    console.log(elapsedMs + " elapsed!")
-    document.querySelector('#latency').innerText = `Your round trip latency in ms: ${elapsedMs}`;
-
-    // Update the graph.
-    this.graphData.push(elapsedMs)
+    // Update the graph with the round trip latency.
+    this.graphData.push(Date.now() - p.timestamp);
     this.graphData.shift();
+    this.totalPings += 1;
     updateGraph(this.graphData);
 
+    // Display median thus far.
+    let cap = Math.min(this.totalPings, DATA_LENGTH);
+    let m = median(this.graphData.slice(-1 * cap));
+    document.querySelector('#latency').innerText = `Your median round trip latency in ms: ${m}`;
   }
 
   registerDataChannelListeners() {
@@ -151,6 +152,7 @@ class Connection {
     })
 
     this.dataChannel.addEventListener('open', () => {
+      // Connection is established, now we just need to wait for data.
       setInterval(() => {
         let p = new Ping(this.id, Date.now())
         this.dataChannel.send(p)
@@ -218,6 +220,14 @@ function registerPeerConnectionListeners(peerConnection) {
     console.log(
       `ICE connection state change: ${peerConnection.iceConnectionState}`);
   });
+}
+
+// Returns the median of src, sort of.
+// If src has an even number of elements, it just returns the upper of the two
+// "halfway" elements. For the numbers we're working with, that's fine.
+function median(src) {
+  let sorted = Array.from(src).sort();
+  return sorted[Math.floor(sorted.length / 2)];
 }
 
 function init() {
