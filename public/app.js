@@ -226,7 +226,7 @@ function registerPeerConnectionListeners(peerConnection) {
 // If src has an even number of elements, it just returns the upper of the two
 // "halfway" elements. For the numbers we're working with, that's fine.
 function median(src) {
-  let sorted = Array.from(src).sort();
+  let sorted = Array.from(src).sort((a, b) => a - b);
   return sorted[Math.floor(sorted.length / 2)];
 }
 
